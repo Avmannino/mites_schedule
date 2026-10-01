@@ -1,4 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 
 import parkingMap from './assets/overflow-parking.jpg'
 import wingsLogo from './assets/wings-logo.png'
@@ -20,49 +25,232 @@ const SCHEDULES = [
   },
 ]
 
-async function loadSchedule(sheetName) {
-  const url =
-    `${API_URL}` +
-    `?sheet=${encodeURIComponent(sheetName)}` +
-    `&t=${Date.now()}`
+// Apps Script usually answers in 2–4s, but some requests stall for
+// much longer. A request still pending after HEDGE_DELAY_MS gets a
+// duplicate started alongside it instead of being abandoned (it may
+// be about to finish), and the first good answer wins. Failed
+// requests are retried; each one gives up after REQUEST_TIMEOUT_MS.
+const HEDGE_DELAY_MS = 6 * 1000
+const RETRY_DELAY_MS = 1000
+const REQUEST_TIMEOUT_MS = 30 * 1000
+const MAX_REQUESTS = 3
 
-  const response = await fetch(url, {
-    method: 'GET',
-    cache: 'no-store',
-    redirect: 'follow',
-  })
+// One request, abandoned if it outlives REQUEST_TIMEOUT_MS or
+// `signal` aborts.
+async function fetchSchedule(sheetName, signal) {
+  const controller = new AbortController()
+  const abort = () => controller.abort()
 
-  if (!response.ok) {
-    throw new Error(
-      `Schedule API returned ${response.status}.`,
-    )
-  }
+  const timer = setTimeout(
+    abort,
+    REQUEST_TIMEOUT_MS,
+  )
 
-  let data
+  signal?.addEventListener('abort', abort)
 
   try {
-    data = await response.json()
+    const url =
+      `${API_URL}` +
+      `?sheet=${encodeURIComponent(sheetName)}` +
+      `&t=${Date.now()}`
+
+    const response = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      redirect: 'follow',
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      throw new Error(
+        `Schedule API returned ${response.status}.`,
+      )
+    }
+
+    let data
+
+    try {
+      data = await response.json()
+    } catch {
+      throw new Error(
+        'The schedule API did not return valid JSON.',
+      )
+    }
+
+    if (!data.success) {
+      throw new Error(
+        data.error ||
+          'Unable to load the schedule.',
+      )
+    }
+
+    return {
+      headers: Array.isArray(data.headers)
+        ? data.headers
+        : [],
+      rows: Array.isArray(data.rows)
+        ? data.rows
+        : [],
+      updatedAt: Date.now(),
+    }
+  } catch (err) {
+    if (
+      controller.signal.aborted &&
+      !signal?.aborted
+    ) {
+      throw new Error(
+        'The schedule API took too long to respond.',
+        { cause: err },
+      )
+    }
+
+    throw err
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener('abort', abort)
+  }
+}
+
+// Up to MAX_REQUESTS requests, per the policy above. `onSlow` fires
+// when a second or third request starts.
+function loadSchedule(
+  sheetName,
+  { signal, onSlow } = {},
+) {
+  return new Promise((resolve, reject) => {
+    // Aborted once settled, cancelling requests still in flight.
+    const controller =
+      new AbortController()
+
+    let started = 0
+    let failed = 0
+    let settled = false
+    let timer
+
+    const settle = (callback, value) => {
+      if (settled) return
+
+      settled = true
+
+      clearTimeout(timer)
+      controller.abort()
+      signal?.removeEventListener('abort', cancel)
+
+      callback(value)
+    }
+
+    const cancel = () =>
+      settle(
+        reject,
+        new DOMException('Aborted', 'AbortError'),
+      )
+
+    const start = () => {
+      started += 1
+
+      if (started > 1) onSlow?.()
+
+      if (started < MAX_REQUESTS) {
+        timer = setTimeout(
+          start,
+          HEDGE_DELAY_MS,
+        )
+      }
+
+      fetchSchedule(
+        sheetName,
+        controller.signal,
+      ).then(
+        (schedule) => settle(resolve, schedule),
+        (err) => {
+          if (settled) return
+
+          failed += 1
+
+          if (failed === MAX_REQUESTS) {
+            settle(reject, err)
+          } else if (failed === started) {
+            // Nothing left in flight, so retry now rather
+            // than waiting out the hedge delay.
+            clearTimeout(timer)
+
+            timer = setTimeout(
+              start,
+              RETRY_DELAY_MS,
+            )
+          }
+        },
+      )
+    }
+
+    if (signal?.aborted) {
+      cancel()
+      return
+    }
+
+    signal?.addEventListener('abort', cancel)
+
+    start()
+  })
+}
+
+// The last good copy of each schedule is kept on this device, so
+// repeat visits render instantly and a failed refresh still has
+// something to show.
+const SAVED_SCHEDULE_PREFIX =
+  'mites-schedule:v1:'
+
+function readSavedSchedule(sheetName) {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(
+        SAVED_SCHEDULE_PREFIX + sheetName,
+      ),
+    )
+
+    return Array.isArray(saved?.headers) &&
+      Array.isArray(saved?.rows) &&
+      Number.isFinite(saved?.updatedAt)
+      ? saved
+      : null
   } catch {
-    throw new Error(
-      'The schedule API did not return valid JSON.',
-    )
+    return null
   }
+}
 
-  if (!data.success) {
-    throw new Error(
-      data.error ||
-        'Unable to load the schedule.',
+function saveSchedule(sheetName, schedule) {
+  try {
+    localStorage.setItem(
+      SAVED_SCHEDULE_PREFIX + sheetName,
+      JSON.stringify(schedule),
     )
+  } catch {
+    // Storage can be full or blocked (e.g. in a third-party
+    // iframe); the saved copy is only a convenience.
   }
+}
 
-  return {
-    headers: Array.isArray(data.headers)
-      ? data.headers
-      : [],
-    rows: Array.isArray(data.rows)
-      ? data.rows
-      : [],
-  }
+function formatSavedAt(timestamp) {
+  return new Date(timestamp).toLocaleString(
+    'en-US',
+    {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    },
+  )
+}
+
+// State updater that merges `changes` into one division.
+function patchDivision(key, changes) {
+  return (current) => ({
+    ...current,
+    [key]: {
+      ...current[key],
+      ...changes,
+    },
+  })
 }
 
 function findHeader(headers, candidates) {
@@ -538,50 +726,86 @@ function App() {
   const [activeKey, setActiveKey] =
     useState('b')
 
-  const [data, setData] =
-    useState({})
-
-  const [loading, setLoading] =
-    useState(true)
-
-  const [error, setError] =
-    useState('')
-
-  const refreshSchedules = async () => {
-    setLoading(true)
-    setError('')
-
-    try {
-      const results = await Promise.all(
-        SCHEDULES.map(async (config) => [
+  // Each division loads on its own, starting from the copy saved
+  // on this device (if any) while a fresh one is fetched.
+  const [divisions, setDivisions] =
+    useState(() =>
+      Object.fromEntries(
+        SCHEDULES.map((config) => [
           config.key,
-          await loadSchedule(
-            config.sheetName,
-          ),
+          {
+            schedule: readSavedSchedule(
+              config.sheetName,
+            ),
+            status: 'loading',
+            error: '',
+          },
         ]),
-      )
+      ),
+    )
 
-      setData(
-        Object.fromEntries(results),
-      )
-    } catch (err) {
-      console.error(
-        'Schedule loading error:',
-        err,
-      )
+  const refreshDivision = useCallback(
+    async (config, signal) => {
+      try {
+        const schedule = await loadSchedule(
+          config.sheetName,
+          {
+            signal,
+            onSlow: () =>
+              setDivisions(
+                patchDivision(config.key, {
+                  status: 'slow',
+                }),
+              ),
+          },
+        )
 
-      setError(
-        err?.message ||
-          'Unable to load the schedule from the schedule API.',
-      )
-    } finally {
-      setLoading(false)
-    }
-  }
+        saveSchedule(
+          config.sheetName,
+          schedule,
+        )
+
+        setDivisions(
+          patchDivision(config.key, {
+            schedule,
+            status: 'ready',
+            error: '',
+          }),
+        )
+      } catch (err) {
+        if (signal?.aborted) return
+
+        console.error(
+          'Schedule loading error:',
+          err,
+        )
+
+        setDivisions(
+          patchDivision(config.key, {
+            status: 'error',
+            error:
+              err?.message ||
+              'Unable to load the schedule from the schedule API.',
+          }),
+        )
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
-    refreshSchedules()
-  }, [])
+    const controller =
+      new AbortController()
+
+    SCHEDULES.forEach((config) =>
+      refreshDivision(
+        config,
+        controller.signal,
+      ),
+    )
+
+    return () => controller.abort()
+  }, [refreshDivision])
 
   const activeConfig =
     SCHEDULES.find(
@@ -589,8 +813,26 @@ function App() {
         schedule.key === activeKey,
     )
 
-  const activeSchedule =
-    data[activeKey]
+  const {
+    schedule: activeSchedule,
+    status,
+    error,
+  } = divisions[activeKey]
+
+  const refreshing =
+    status === 'loading' ||
+    status === 'slow'
+
+  const retryActive = () => {
+    setDivisions(
+      patchDivision(activeKey, {
+        status: 'loading',
+        error: '',
+      }),
+    )
+
+    refreshDivision(activeConfig)
+  }
 
   return (
     <main className="app-shell">
@@ -625,6 +867,13 @@ function App() {
           <div>
             <p className="section-kicker">
               GAME SCHEDULE
+
+              {activeSchedule &&
+                refreshing && (
+                  <span className="refresh-status">
+                    · Updating…
+                  </span>
+                )}
             </p>
 
             <h2>
@@ -665,31 +914,63 @@ function App() {
           ))}
         </div>
 
-        {loading && (
-          <div className="loading-state">
-            Loading schedule…
-          </div>
-        )}
-
-        {!loading && error && (
-          <div className="error-state">
-            <strong>
-              Schedule could not load.
-            </strong>
-
-            <span>
-              {error}
-            </span>
-          </div>
-        )}
-
-        {!loading &&
-          !error &&
-          activeSchedule && (
-            <ScheduleTable
-              schedule={activeSchedule}
-            />
+        {!activeSchedule &&
+          refreshing && (
+            <div className="loading-state">
+              {status === 'slow'
+                ? 'Taking longer than usual — still trying…'
+                : 'Loading schedule…'}
+            </div>
           )}
+
+        {!activeSchedule &&
+          status === 'error' && (
+            <div className="error-state">
+              <strong>
+                Schedule could not load.
+              </strong>
+
+              <span>
+                {error}
+              </span>
+
+              <button
+                type="button"
+                className="retry-button"
+                onClick={retryActive}
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+        {activeSchedule &&
+          status === 'error' && (
+            <div className="stale-notice">
+              <span>
+                Couldn’t refresh — showing the
+                schedule as of{' '}
+                {formatSavedAt(
+                  activeSchedule.updatedAt,
+                )}
+                .
+              </span>
+
+              <button
+                type="button"
+                className="retry-button"
+                onClick={retryActive}
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+        {activeSchedule && (
+          <ScheduleTable
+            schedule={activeSchedule}
+          />
+        )}
       </section>
 
       {/* OVERFLOW PARKING */}
