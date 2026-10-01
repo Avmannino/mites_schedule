@@ -1,0 +1,782 @@
+import { useEffect, useMemo, useState } from 'react'
+
+import parkingMap from './assets/overflow-parking.jpg'
+import wingsLogo from './assets/wings-logo.png'
+import './App.css'
+
+const API_URL =
+  'https://script.google.com/macros/s/AKfycbwrQ6sw4zTUetLdtfrmRDwUlpob74SQ04mlZXp-XLI51MsurDeTm6aAUSRq052oE8BP/exec'
+
+const SCHEDULES = [
+  {
+    key: 'b',
+    label: 'Mite B',
+    sheetName: 'Mite B Schedule',
+  },
+  {
+    key: 'c',
+    label: 'Mite C',
+    sheetName: 'Mite C Schedule',
+  },
+]
+
+async function loadSchedule(sheetName) {
+  const url =
+    `${API_URL}` +
+    `?sheet=${encodeURIComponent(sheetName)}` +
+    `&t=${Date.now()}`
+
+  const response = await fetch(url, {
+    method: 'GET',
+    cache: 'no-store',
+    redirect: 'follow',
+  })
+
+  if (!response.ok) {
+    throw new Error(
+      `Schedule API returned ${response.status}.`,
+    )
+  }
+
+  let data
+
+  try {
+    data = await response.json()
+  } catch {
+    throw new Error(
+      'The schedule API did not return valid JSON.',
+    )
+  }
+
+  if (!data.success) {
+    throw new Error(
+      data.error ||
+        'Unable to load the schedule.',
+    )
+  }
+
+  return {
+    headers: Array.isArray(data.headers)
+      ? data.headers
+      : [],
+    rows: Array.isArray(data.rows)
+      ? data.rows
+      : [],
+  }
+}
+
+function findHeader(headers, candidates) {
+  return headers.find((header) =>
+    candidates.some(
+      (candidate) =>
+        String(header)
+          .trim()
+          .toLowerCase() === candidate,
+    ),
+  )
+}
+
+const WEEKDAY_PATTERN =
+  /\b(mon|tue|wed|thu|fri|sat|sun)/i
+
+function parseDate(value) {
+  const text = String(value).trim()
+
+  const isoDate = text.match(
+    /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
+  )
+
+  if (isoDate) {
+    return new Date(
+      Number(isoDate[1]),
+      Number(isoDate[2]) - 1,
+      Number(isoDate[3]),
+    )
+  }
+
+  const usDate = text.match(
+    /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/,
+  )
+
+  if (usDate) {
+    const year = usDate[3]
+      ? Number(usDate[3].padStart(4, '20'))
+      : new Date().getFullYear()
+
+    return new Date(
+      year,
+      Number(usDate[1]) - 1,
+      Number(usDate[2]),
+    )
+  }
+
+  const parsed = new Date(text)
+
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed
+}
+
+const HIDE_AFTER_MS = 12 * 60 * 60 * 1000
+
+function parseTime(value) {
+  const text = String(value ?? '').trim()
+
+  if (!text) return null
+
+  // Full timestamps (e.g. Sheets time cells serialized as dates)
+  if (/T\d{2}:\d{2}/.test(text)) {
+    const parsed = new Date(text)
+
+    return Number.isNaN(parsed.getTime())
+      ? null
+      : {
+          hours: parsed.getHours(),
+          minutes: parsed.getMinutes(),
+        }
+  }
+
+  const twelveHour = text.match(
+    /^(\d{1,2})(?::(\d{2}))?(?::\d{2})?\s*([ap])\.?\s*m?\.?$/i,
+  )
+
+  if (twelveHour) {
+    const hours =
+      (Number(twelveHour[1]) % 12) +
+      (twelveHour[3].toLowerCase() === 'p' ? 12 : 0)
+
+    return {
+      hours,
+      minutes: Number(twelveHour[2] || 0),
+    }
+  }
+
+  const twentyFourHour = text.match(
+    /^(\d{1,2}):(\d{2})(?::\d{2})?$/,
+  )
+
+  if (twentyFourHour) {
+    return {
+      hours: Number(twentyFourHour[1]),
+      minutes: Number(twentyFourHour[2]),
+    }
+  }
+
+  return null
+}
+
+// When the game is over: end time if known, else start time, else end of day.
+function getGameEnd(row, primaryHeaders) {
+  const date = primaryHeaders.date
+    ? parseDate(row[primaryHeaders.date] ?? '')
+    : null
+
+  if (!date) return null
+
+  const time =
+    parseTime(row[primaryHeaders.end]) ||
+    parseTime(row[primaryHeaders.start]) ||
+    { hours: 23, minutes: 59 }
+
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    time.hours,
+    time.minutes,
+  )
+}
+
+function formatDateWithWeekday(value) {
+  if (!value) return value
+
+  const text = String(value).trim()
+
+  if (WEEKDAY_PATTERN.test(text)) {
+    return text
+  }
+
+  const date = parseDate(text)
+
+  if (!date) return text
+
+  const weekday = date.toLocaleDateString(
+    'en-US',
+    { weekday: 'short' },
+  )
+
+  // ISO dates and full timestamps (e.g. from Sheets) get a clean M/D/YYYY date.
+  if (/^\d{4}-/.test(text)) {
+    return `${weekday}, ${date.toLocaleDateString(
+      'en-US',
+      {
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric',
+      },
+    )}`
+  }
+
+  return `${weekday}, ${text}`
+}
+
+function ScheduleTable({ schedule }) {
+  const { headers, rows: allRows } = schedule
+
+  const [now, setNow] =
+    useState(() => Date.now())
+
+  // Re-check every minute so finished games drop off while the page stays open.
+  useEffect(() => {
+    const timer = setInterval(
+      () => setNow(Date.now()),
+      60 * 1000,
+    )
+
+    return () => clearInterval(timer)
+  }, [])
+
+  const primaryHeaders = useMemo(() => {
+    const date = findHeader(headers, [
+      'date',
+    ])
+
+    const start = findHeader(headers, [
+      'start time',
+      'start',
+    ])
+
+    const end = findHeader(headers, [
+      'end time',
+      'end',
+    ])
+
+    const home = findHeader(headers, [
+      'home team',
+      'home',
+    ])
+
+    const away = findHeader(headers, [
+      'away team',
+      'away',
+    ])
+
+    return {
+      date,
+      start,
+      end,
+      home,
+      away,
+    }
+  }, [headers])
+
+  // Hide games 12 hours after they finish; rows without a readable date stay visible.
+  const rows = useMemo(
+    () =>
+      allRows.filter((row) => {
+        const gameEnd = getGameEnd(
+          row,
+          primaryHeaders,
+        )
+
+        return (
+          !gameEnd ||
+          now < gameEnd.getTime() + HIDE_AFTER_MS
+        )
+      }),
+    [allRows, primaryHeaders, now],
+  )
+
+  // Drop End Time and place Home/Away Team right after Start Time.
+  const displayHeaders = useMemo(() => {
+    const { start, end, home, away } =
+      primaryHeaders
+
+    const teams = [home, away].filter(Boolean)
+
+    const remaining = headers.filter(
+      (header) =>
+        header !== end &&
+        !teams.includes(header),
+    )
+
+    const startIndex = remaining.indexOf(start)
+
+    if (startIndex === -1) {
+      return [...remaining, ...teams]
+    }
+
+    return [
+      ...remaining.slice(0, startIndex + 1),
+      ...teams,
+      ...remaining.slice(startIndex + 1),
+    ]
+  }, [headers, primaryHeaders])
+
+  // Mobile agenda: consecutive rows grouped by month, then by day (like Google Calendar's schedule view).
+  const agenda = useMemo(() => {
+    const months = []
+
+    rows.forEach((row) => {
+      const raw = String(
+        row[primaryHeaders.date] ?? '',
+      ).trim()
+
+      const date = raw ? parseDate(raw) : null
+
+      const monthLabel = date
+        ? date.toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric',
+          })
+        : 'Date TBD'
+
+      let month = months[months.length - 1]
+
+      if (!month || month.label !== monthLabel) {
+        month = { label: monthLabel, days: [] }
+        months.push(month)
+      }
+
+      let day = month.days[month.days.length - 1]
+
+      if (!day || day.raw !== raw) {
+        day = { raw, date, rows: [] }
+        month.days.push(day)
+      }
+
+      day.rows.push(row)
+    })
+
+    return months
+  }, [rows, primaryHeaders])
+
+  if (!rows.length) {
+    return (
+      <div className="empty-state">
+        {allRows.length
+          ? 'No upcoming games for this division.'
+          : 'No schedule rows were found for this division.'}
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {/* DESKTOP / TABLET */}
+
+      <div
+        className="desktop-table-wrap"
+        aria-label="Mites game schedule"
+      >
+        <table className="schedule-table">
+          <thead>
+            <tr>
+              {displayHeaders.map((header) => (
+                <th
+                  key={header}
+                  scope="col"
+                >
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>
+            {rows.map((row, rowIndex) => (
+              <tr
+                key={
+                  `${rowIndex}-` +
+                  `${row[primaryHeaders.date] || ''}-` +
+                  `${row[primaryHeaders.start] || ''}`
+                }
+              >
+                {displayHeaders.map((header) => (
+                  <td
+                    key={`${rowIndex}-${header}`}
+                    data-label={header}
+                    className={
+                      header === primaryHeaders.home ||
+                      header === primaryHeaders.away
+                        ? 'team-cell'
+                        : undefined
+                    }
+                  >
+                    {(header === primaryHeaders.date
+                      ? formatDateWithWeekday(
+                          row[header],
+                        )
+                      : row[header]) || (
+                      <span className="dash">
+                        —
+                      </span>
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* MOBILE */}
+
+      <div
+        className="mobile-schedule"
+        aria-label="Mites game schedule"
+      >
+        {agenda.map((month, monthIndex) => (
+          <section
+            className="agenda-month"
+            key={`${month.label}-${monthIndex}`}
+          >
+            <h3 className="agenda-month-label">
+              {month.label}
+            </h3>
+
+            {month.days.map((day, dayIndex) => {
+              const isToday =
+                day.date &&
+                day.date.toDateString() ===
+                  new Date().toDateString()
+
+              return (
+                <div
+                  className="agenda-day"
+                  key={`${day.raw}-${dayIndex}`}
+                >
+                  <div
+                    className={
+                      `agenda-date` +
+                      `${isToday ? ' today' : ''}`
+                    }
+                  >
+                    {day.date ? (
+                      <>
+                        <span className="agenda-weekday">
+                          {day.date.toLocaleDateString(
+                            'en-US',
+                            { weekday: 'short' },
+                          )}
+                        </span>
+
+                        <span className="agenda-daynum">
+                          {day.date.getDate()}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="agenda-weekday">
+                        {day.raw || 'TBD'}
+                      </span>
+                    )}
+                  </div>
+
+                  <ul className="agenda-events">
+                    {day.rows.map((row, rowIndex) => {
+                      const details = displayHeaders.filter(
+                        (header) =>
+                          row[header] &&
+                          ![
+                            primaryHeaders.date,
+                            primaryHeaders.start,
+                            primaryHeaders.home,
+                            primaryHeaders.away,
+                          ].includes(header),
+                      )
+
+                      return (
+                        <li
+                          className="agenda-event"
+                          key={rowIndex}
+                        >
+                          <span className="agenda-event-title">
+                            {row[primaryHeaders.home] ||
+                              'TBD'}
+
+                            <span className="vs">
+                              vs
+                            </span>
+
+                            {row[primaryHeaders.away] ||
+                              'TBD'}
+                          </span>
+
+                          <span className="agenda-event-time">
+                            {row[primaryHeaders.start] ||
+                              'Time TBD'}
+                          </span>
+
+                          {details.length > 0 && (
+                            <span className="agenda-event-meta">
+                              {details.map((header) => (
+                                <span key={header}>
+                                  <span className="agenda-meta-label">
+                                    {header}
+                                  </span>
+
+                                  {row[header]}
+                                </span>
+                              ))}
+                            </span>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )
+            })}
+          </section>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function App() {
+  const [activeKey, setActiveKey] =
+    useState('b')
+
+  const [data, setData] =
+    useState({})
+
+  const [loading, setLoading] =
+    useState(true)
+
+  const [error, setError] =
+    useState('')
+
+  const refreshSchedules = async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const results = await Promise.all(
+        SCHEDULES.map(async (config) => [
+          config.key,
+          await loadSchedule(
+            config.sheetName,
+          ),
+        ]),
+      )
+
+      setData(
+        Object.fromEntries(results),
+      )
+    } catch (err) {
+      console.error(
+        'Schedule loading error:',
+        err,
+      )
+
+      setError(
+        err?.message ||
+          'Unable to load the schedule from the schedule API.',
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    refreshSchedules()
+  }, [])
+
+  const activeConfig =
+    SCHEDULES.find(
+      (schedule) =>
+        schedule.key === activeKey,
+    )
+
+  const activeSchedule =
+    data[activeKey]
+
+  return (
+    <main className="app-shell">
+      {/* HERO */}
+
+      <section className="hero">
+        <div className="hero-copy">
+
+          <h1>
+            Mites B/C Schedules
+          </h1>
+
+          <p>
+            Game dates, times, matchups and parking info
+          </p>
+        </div>
+
+        <img
+          className="hero-logo"
+          src={wingsLogo}
+          alt="Wings Arena logo"
+        />
+      </section>
+
+      {/* SCHEDULE */}
+
+      <section
+        className="schedule-section"
+        id="schedule"
+      >
+        <div className="section-heading-row">
+          <div>
+            <p className="section-kicker">
+              GAME SCHEDULE
+            </p>
+
+            <h2>
+              {activeConfig?.label} Schedule
+            </h2>
+          </div>
+        </div>
+
+        <div
+          className="division-tabs"
+          role="tablist"
+          aria-label="Mites divisions"
+        >
+          {SCHEDULES.map((schedule) => (
+            <button
+              key={schedule.key}
+              type="button"
+              role="tab"
+              aria-selected={
+                activeKey === schedule.key
+              }
+              className={
+                `division-tab ` +
+                `${
+                  activeKey === schedule.key
+                    ? 'active'
+                    : ''
+                }`
+              }
+              onClick={() =>
+                setActiveKey(
+                  schedule.key,
+                )
+              }
+            >
+              {schedule.label}
+            </button>
+          ))}
+        </div>
+
+        {loading && (
+          <div className="loading-state">
+            Loading schedule…
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="error-state">
+            <strong>
+              Schedule could not load.
+            </strong>
+
+            <span>
+              {error}
+            </span>
+          </div>
+        )}
+
+        {!loading &&
+          !error &&
+          activeSchedule && (
+            <ScheduleTable
+              schedule={activeSchedule}
+            />
+          )}
+      </section>
+
+      {/* OVERFLOW PARKING */}
+
+      <section
+        className="parking-section"
+        id="overflow-parking"
+      >
+        <div className="parking-copy">
+          <p className="section-kicker red">
+            PARKING INFORMATION
+          </p>
+
+          <h2>
+            Overflow Parking at Wings Arena
+          </h2>
+
+          <p>
+            We have a full schedule of games this
+            weekend, so please share with your
+            families the below information regarding{' '}
+            <strong>
+              “Overflow Parking.”
+            </strong>
+          </p>
+
+          <p>
+            Please use either:
+          </p>
+
+          <div className="parking-options">
+            <div className="parking-option">
+              <span className="parking-number">
+                1
+              </span>
+
+              <div>
+                <strong>
+                  Street parking on Barry Place
+                </strong>
+              </div>
+            </div>
+
+            <div className="parking-option">
+              <span className="parking-number">
+                2
+              </span>
+
+              <div>
+                <strong>
+                  St. Clement’s Church parking lot
+                </strong>
+
+                <span>
+                  We now have permission to use it.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <p>
+            See map attached for reference.
+          </p>
+
+          <div className="dropoff-note">
+            If you need to use overflow parking,
+            we encourage you to drop off your child
+            and equipment at the main entrance first.
+            We recognize that this is a long walk
+            and apologize for the inconvenience.
+          </div>
+        </div>
+
+        <figure className="parking-map-card">
+          <img
+            src={parkingMap}
+            alt="Overflow parking map showing street parking on Barry Place, St. Clement's Church parking, and the walking route to Wings Arena."
+          />
+
+          <figcaption>
+            Overflow parking locations and walking
+            route to Wings Arena.
+          </figcaption>
+        </figure>
+      </section>
+    </main>
+  )
+}
+
+export default App

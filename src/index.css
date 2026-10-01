@@ -1,0 +1,96 @@
+:root {
+  font-family:
+    Oswald,
+    Impact,
+    "Arial Narrow",
+    sans-serif;
+
+  color: #e3ecf5;
+  background: #041a2c;
+
+  color-scheme: dark;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  -webkit-font-smoothing:
+    antialiased;
+
+  --navy: #093b60;
+  --navy-2: #0b4672;
+  --blue: #8cc0ea;
+  --red: #d60036;
+  --red-text: #ff5a80;
+  --bg: #041a2c;
+  --surface: #06243d;
+  --surface-2: #0a3150;
+  --surface-hover: #0f3d63;
+  --ice: #0a3150;
+  --line: #174a72;
+  --line-soft: #113c5f;
+  --text: #e3ecf5;
+  --text-soft: #c3d3e3;
+  --text-strong: #ffffff;
+  --muted: #93abc3;
+  --white: #ffffff;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+img {
+  max-width: 100%;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+
+  min-width: 0;
+  width: 100%;
+
+  min-height: 0;
+  height: auto;
+}
+
+html,
+body {
+  min-width: 320px;
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+
+  background: var(--bg);
+}
+
+#root {
+  width: 100%;
+  min-width: 0;
+
+  min-height: 0;
+  height: auto;
+}
+
+button,
+a {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color:
+    transparent;
+}
