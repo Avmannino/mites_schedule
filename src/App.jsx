@@ -410,18 +410,18 @@ function parseTime(value) {
   return null
 }
 
-// Every division is shown with Mite B's columns, in Mite B's order.
+// Every division is shown with the same columns in the same order.
 // Sheet headers are matched case-insensitively; unknown columns go last.
 const STANDARD_COLUMNS = [
   'DATE',
   'RINK',
   'START TIME',
   'END TIME',
-  'Level',
   'Rink Location',
   'Format',
   'HOME TEAM',
   'AWAY TEAM',
+  'Level',
 ]
 
 const DEFAULT_RINK = 'Wings Arena'
