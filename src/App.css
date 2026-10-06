@@ -633,11 +633,23 @@ td {
 tbody.featured-games
 tr.group-row
 td {
+  padding-top:
+    12px;
+
+  padding-bottom:
+    12px;
+
   color:
     var(--white);
 
   background:
     var(--red);
+
+  font-size:
+    0.95rem;
+
+  font-weight:
+    800;
 }
 
 .group-dates {
@@ -649,6 +661,17 @@ td {
 
   letter-spacing:
     0.04em;
+}
+
+.featured-games
+.group-dates,
+.agenda-featured
+.group-dates {
+  margin-left:
+    12px;
+
+  font-weight:
+    700;
 }
 
 /* The next weekend's games. */
@@ -1373,10 +1396,10 @@ span:not(
       var(--line);
 
     font-size:
-      1.05rem;
+      1.2rem;
 
     font-weight:
-      700;
+      800;
 
     letter-spacing:
       0.04em;
