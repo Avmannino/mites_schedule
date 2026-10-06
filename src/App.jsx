@@ -1123,7 +1123,7 @@ function App() {
         <div className="hero-copy">
 
           <h1>
-            Mites B/C{' '}
+            Mite B/C{' '}
             {/* Line break shown on mobile only (CSS). */}
             <br className="hero-break" />
             Schedules
