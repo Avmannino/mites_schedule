@@ -651,7 +651,7 @@ th.team-cell {
     0.04em;
 }
 
-/* Blue rule between "This Weekend" and its date. */
+/* Dark rule (page background color) between "This Weekend" and its date. */
 .tab-divider {
   display: inline-block;
 
@@ -666,7 +666,7 @@ th.team-cell {
     -0.15em;
 
   background:
-    var(--blue);
+    var(--bg);
 }
 
 .featured-tab
