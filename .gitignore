@@ -25,3 +25,6 @@ dist-ssr
 
 # Windows download metadata (WSL)
 *:Zone.Identifier
+
+# Windows editor temp files
+*.TMP
