@@ -353,6 +353,84 @@ function parseTime(value) {
   return null
 }
 
+// Every division is shown with Mite B's columns, in Mite B's order.
+// Sheet headers are matched case-insensitively; unknown columns go last.
+const STANDARD_COLUMNS = [
+  'DATE',
+  'RINK',
+  'START TIME',
+  'END TIME',
+  'Level',
+  'Rink Location',
+  'Format',
+  'HOME TEAM',
+  'AWAY TEAM',
+]
+
+const DEFAULT_RINK = 'WINGS'
+
+// "7:00:00" -> "7:00 AM". Values that can't be read are left as-is.
+function formatTime(value) {
+  const time = parseTime(value)
+
+  if (!time) return value
+
+  const minutes = String(time.minutes).padStart(2, '0')
+  const period = time.hours < 12 ? 'AM' : 'PM'
+
+  return `${time.hours % 12 || 12}:${minutes} ${period}`
+}
+
+function standardizeSchedule({ headers, rows }) {
+  const standardName = (header) =>
+    STANDARD_COLUMNS.find(
+      (column) =>
+        column.toLowerCase() ===
+        String(header).trim().toLowerCase(),
+    ) ?? header
+
+  const renamed = headers.map(standardName)
+
+  const standardHeaders = [
+    ...STANDARD_COLUMNS.filter(
+      (column) =>
+        renamed.includes(column) ||
+        column === 'RINK',
+    ),
+    ...renamed.filter(
+      (header) =>
+        !STANDARD_COLUMNS.includes(header),
+    ),
+  ]
+
+  const standardRows = rows.map((row) => {
+    const standardRow = {}
+
+    headers.forEach((header, index) => {
+      standardRow[renamed[index]] = row[header]
+    })
+
+    standardRow.RINK ||= DEFAULT_RINK
+
+    ;['START TIME', 'END TIME'].forEach(
+      (column) => {
+        if (standardRow[column]) {
+          standardRow[column] = formatTime(
+            standardRow[column],
+          )
+        }
+      },
+    )
+
+    return standardRow
+  })
+
+  return {
+    headers: standardHeaders,
+    rows: standardRows,
+  }
+}
+
 // When the game is over: end time if known, else start time, else end of day.
 function getGameEnd(row, primaryHeaders) {
   const date = primaryHeaders.date
@@ -409,7 +487,10 @@ function formatDateWithWeekday(value) {
 }
 
 function ScheduleTable({ schedule }) {
-  const { headers, rows: allRows } = schedule
+  const { headers, rows: allRows } = useMemo(
+    () => standardizeSchedule(schedule),
+    [schedule],
+  )
 
   const [now, setNow] =
     useState(() => Date.now())
