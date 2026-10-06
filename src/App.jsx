@@ -426,13 +426,12 @@ const STANDARD_COLUMNS = [
 
 const DEFAULT_RINK = 'Wings Arena'
 
-// Rink locations stay left-aligned; everything else is centered.
+// Team names and rink locations stay left-aligned so they scan
+// easily; everything else is centered.
 const CENTERED_COLUMNS = [
   'DATE',
   'RINK',
   'START TIME',
-  'HOME TEAM',
-  'AWAY TEAM',
   'Level',
   'Format',
 ]
