@@ -1111,7 +1111,17 @@ span:not(
       28px;
   }
 
+  /* Logo stacks above the title, its artwork left-aligned with the text
+     (the logo's negative margins trim the PNG's transparent padding). */
   .hero {
+    flex-direction:
+      column-reverse;
+
+    align-items:
+      flex-start;
+
+    gap: 14px;
+
     margin-left:
       -12px;
 
