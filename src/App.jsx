@@ -426,8 +426,8 @@ const STANDARD_COLUMNS = [
 
 const DEFAULT_RINK = 'Wings Arena'
 
-// Team names stay left-aligned so they scan easily; everything else
-// is centered.
+// Everything is centered except the Matchup column, which lines its
+// team names up on either side of "vs".
 const CENTERED_COLUMNS = [
   'DATE',
   'RINK',
@@ -537,6 +537,26 @@ function getGameEnd(row, primaryHeaders) {
   )
 }
 
+// Display-only column that replaces Home Team and Away Team.
+const MATCHUP = 'MATCHUP'
+
+// "Home  vs  Away" on a three-part grid, so "vs" lines up down the column.
+function Matchup({ home, away }) {
+  return (
+    <span className="matchup">
+      <span className="matchup-home">
+        {home || 'TBD'}
+      </span>
+
+      <span className="matchup-vs">vs</span>
+
+      <span className="matchup-away">
+        {away || 'TBD'}
+      </span>
+    </span>
+  )
+}
+
 // Every sheet's date shown as "Saturday | 10/10/26" ("SAT" when narrow); unreadable values are left as-is.
 function formatDateWithWeekday(value) {
   if (!value) return value
@@ -636,17 +656,19 @@ function ScheduleTable({ schedule }) {
     [allRows, primaryHeaders, now],
   )
 
-  // Drop End Time and place Home/Away Team right after Start Time.
+  // Drop End Time and replace Home/Away Team with one Matchup column
+  // right after Start Time.
   const displayHeaders = useMemo(() => {
     const { start, end, home, away } =
       primaryHeaders
 
-    const teams = [home, away].filter(Boolean)
+    const teams = home || away ? [MATCHUP] : []
 
     const remaining = headers.filter(
       (header) =>
         header !== end &&
-        !teams.includes(header),
+        header !== home &&
+        header !== away,
     )
 
     const startIndex = remaining.indexOf(start)
@@ -744,9 +766,7 @@ function ScheduleTable({ schedule }) {
   // Alignment and width classes, shared by each header and its cells.
   const columnClass = (header) =>
     [
-      (header === primaryHeaders.home ||
-        header === primaryHeaders.away) &&
-        'team-cell',
+      header === MATCHUP && 'matchup-cell',
       CENTERED_COLUMNS.includes(header) &&
         'cell-center',
       NARROW_COLUMNS.includes(header) &&
@@ -771,7 +791,12 @@ function ScheduleTable({ schedule }) {
           data-label={header}
           className={columnClass(header)}
         >
-          {(header === primaryHeaders.date
+          {header === MATCHUP ? (
+            <Matchup
+              home={row[primaryHeaders.home]}
+              away={row[primaryHeaders.away]}
+            />
+          ) : (header === primaryHeaders.date
             ? formatDateWithWeekday(
                 row[header],
               )
@@ -922,7 +947,14 @@ function ScheduleTable({ schedule }) {
                     scope="col"
                     className={columnClass(header)}
                   >
-                    {header}
+                    {header === MATCHUP ? (
+                      <Matchup
+                        home="Home"
+                        away="Away"
+                      />
+                    ) : (
+                      header
+                    )}
                   </th>
                 ))}
               </tr>

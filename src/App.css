@@ -528,15 +528,55 @@ td:first-child {
     var(--surface-hover);
 }
 
-/* Team names lead: larger and heavier, with the other detail columns softened. */
+/* Team names lead (see .matchup-cell); the other detail columns are softened. */
 .schedule-table
 td {
   color:
     var(--text-soft);
 }
 
+/* Matchup: home right-aligned, "vs" centered, away left-aligned, so
+   "vs" lines up down the column (the header uses the same grid). */
+.matchup {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto
+    minmax(0, 1fr);
+
+  align-items:
+    center;
+
+  gap: 12px;
+}
+
+.matchup-home {
+  text-align:
+    right;
+}
+
+.matchup-away {
+  text-align:
+    left;
+}
+
+.matchup-vs {
+  color:
+    var(--red-text);
+
+  font-size:
+    0.72rem;
+
+  font-weight:
+    600;
+
+  text-transform:
+    uppercase;
+}
+
 .schedule-table
-td.team-cell {
+td.matchup-cell {
   color:
     var(--text-strong);
 
@@ -609,10 +649,10 @@ th.date-cell {
   width: 18%;
 }
 
-/* The team columns split whatever the other columns leave, evenly. */
+/* The matchup column takes whatever the other columns leave. */
 .schedule-table
-th.team-cell {
-  width: 38%;
+th.matchup-cell {
+  width: 76%;
 }
 
 /* "This Weekend · Sat, Oct 10" tab on the table's top-right corner,
