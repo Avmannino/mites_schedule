@@ -445,6 +445,13 @@ const STANDARD_COLUMNS = [
 
 const DEFAULT_RINK = 'WINGS'
 
+// Short codes are centered; dates, times and names stay left-aligned
+// so they scan easily.
+const CENTERED_COLUMNS = ['Level', 'Format']
+
+// Sized to their content, leaving the spare width to the team names.
+const NARROW_COLUMNS = ['RINK', 'Level', 'Format']
+
 // "7:00:00" -> "7:00 AM". Values that can't be read are left as-is.
 function formatTime(value) {
   const time = parseTime(value)
@@ -737,6 +744,20 @@ function ScheduleTable({ schedule }) {
     [featured, primaryHeaders],
   )
 
+  // Alignment and width classes, shared by each header and its cells.
+  const columnClass = (header) =>
+    [
+      (header === primaryHeaders.home ||
+        header === primaryHeaders.away) &&
+        'team-cell',
+      CENTERED_COLUMNS.includes(header) &&
+        'cell-center',
+      NARROW_COLUMNS.includes(header) &&
+        'col-narrow',
+    ]
+      .filter(Boolean)
+      .join(' ') || undefined
+
   const renderRow = (row, rowIndex, group) => (
     <tr
       key={
@@ -749,12 +770,7 @@ function ScheduleTable({ schedule }) {
         <td
           key={`${rowIndex}-${header}`}
           data-label={header}
-          className={
-            header === primaryHeaders.home ||
-            header === primaryHeaders.away
-              ? 'team-cell'
-              : undefined
-          }
+          className={columnClass(header)}
         >
           {(header === primaryHeaders.date
             ? formatDateWithWeekday(
@@ -888,6 +904,7 @@ function ScheduleTable({ schedule }) {
                 <th
                   key={header}
                   scope="col"
+                  className={columnClass(header)}
                 >
                   {header}
                 </th>
