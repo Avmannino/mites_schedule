@@ -585,7 +585,7 @@ td.team-cell {
     center;
 }
 
-/* Shrink to content; the spare width goes to the team columns. */
+/* Shrink to content, leaving the spare width to the other columns. */
 .schedule-table
 th.col-narrow {
   width: 1%;
@@ -593,7 +593,7 @@ th.col-narrow {
 
 .schedule-table
 th.team-cell {
-  width: 22%;
+  width: 15%;
 }
 
 /* Group label rows: "This Weekend" and "Later Games". */
