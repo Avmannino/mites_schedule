@@ -609,9 +609,10 @@ th.date-cell {
   width: 18%;
 }
 
+/* The team columns split whatever the other columns leave, evenly. */
 .schedule-table
 th.team-cell {
-  width: 15%;
+  width: 38%;
 }
 
 /* "This Weekend · Sat, Oct 10" tab on the table's top-right corner,

@@ -442,6 +442,7 @@ const NARROW_COLUMNS = [
   'RINK',
   'START TIME',
   'Level',
+  'Rink Location',
   'Format',
 ]
 
