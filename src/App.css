@@ -39,16 +39,6 @@
     var(--white);
 
   background:
-    radial-gradient(
-      circle at 88% 15%,
-      rgba(
-        214,
-        0,
-        54,
-        0.28
-      ),
-      transparent 32%
-    ),
     linear-gradient(
       135deg,
       #041a2c 0%,
