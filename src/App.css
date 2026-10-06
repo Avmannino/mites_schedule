@@ -82,6 +82,20 @@
   min-width: 0;
 }
 
+/* Splits the title onto two lines on mobile. */
+.hero-break {
+  display: none;
+}
+
+@media (
+  max-width:
+    720px
+) {
+  .hero-break {
+    display: inline;
+  }
+}
+
 /* The PNG has wide transparent padding; negative margins trim it to the artwork. */
 .hero-logo {
   --logo-size:
