@@ -100,9 +100,9 @@
 .hero-logo {
   --logo-size:
     clamp(
-      100px,
-      15vw,
-      190px
+      76px,
+      11vw,
+      140px
     );
 
   flex:
@@ -1526,9 +1526,9 @@ span:not(
   .hero-logo {
     --logo-size:
       clamp(
-        72px,
-        21vw,
-        98px
+        56px,
+        16vw,
+        74px
       );
   }
 }
