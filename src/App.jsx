@@ -298,11 +298,87 @@ function parseDate(value) {
     )
   }
 
+  // "Sat, Oct 10, 2026" — parsed explicitly since browsers disagree on
+  // free-form dates.
+  const longDate = text.match(
+    /^(?:[a-z]+,?\s+)?([a-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4})$/i,
+  )
+
+  if (longDate) {
+    const month = MONTHS.indexOf(
+      longDate[1].toLowerCase(),
+    )
+
+    if (month !== -1) {
+      return new Date(
+        Number(longDate[3]),
+        month,
+        Number(longDate[2]),
+      )
+    }
+  }
+
   const parsed = new Date(text)
 
   return Number.isNaN(parsed.getTime())
     ? null
     : parsed
+}
+
+const MONTHS = [
+  'jan', 'feb', 'mar', 'apr', 'may', 'jun',
+  'jul', 'aug', 'sep', 'oct', 'nov', 'dec',
+]
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Sunday games belong to the weekend that starts the day before;
+// every other day stands alone.
+function weekendStart(date) {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate() -
+      (date.getDay() === 0 ? 1 : 0),
+  )
+}
+
+// Consecutive rows grouped by month, then by day.
+function groupByMonthAndDay(rows, dateHeader) {
+  const months = []
+
+  rows.forEach((row) => {
+    const raw = String(
+      row[dateHeader] ?? '',
+    ).trim()
+
+    const date = raw ? parseDate(raw) : null
+
+    const monthLabel = date
+      ? date.toLocaleDateString('en-US', {
+          month: 'long',
+          year: 'numeric',
+        })
+      : 'Date TBD'
+
+    let month = months[months.length - 1]
+
+    if (!month || month.label !== monthLabel) {
+      month = { label: monthLabel, days: [] }
+      months.push(month)
+    }
+
+    let day = month.days[month.days.length - 1]
+
+    if (!day || day.raw !== raw) {
+      day = { raw, date, rows: [] }
+      month.days.push(day)
+    }
+
+    day.rows.push(row)
+  })
+
+  return months
 }
 
 const HIDE_AFTER_MS = 12 * 60 * 60 * 1000
@@ -582,43 +658,210 @@ function ScheduleTable({ schedule }) {
     ]
   }, [headers, primaryHeaders])
 
-  // Mobile agenda: consecutive rows grouped by month, then by day (like Google Calendar's schedule view).
-  const agenda = useMemo(() => {
-    const months = []
+  // The next weekend with games is pulled out so it stands apart from later games.
+  const featured = useMemo(() => {
+    const dates = rows.map((row) =>
+      primaryHeaders.date
+        ? parseDate(row[primaryHeaders.date] ?? '')
+        : null,
+    )
 
-    rows.forEach((row) => {
-      const raw = String(
-        row[primaryHeaders.date] ?? '',
-      ).trim()
+    const weekends = dates.map((date) =>
+      date ? weekendStart(date).getTime() : null,
+    )
 
-      const date = raw ? parseDate(raw) : null
+    const next = Math.min(
+      ...weekends.filter((time) => time !== null),
+    )
 
-      const monthLabel = date
-        ? date.toLocaleDateString('en-US', {
-            month: 'long',
-            year: 'numeric',
-          })
-        : 'Date TBD'
+    if (!Number.isFinite(next)) {
+      return { rows: [], laterRows: rows }
+    }
 
-      let month = months[months.length - 1]
+    const today = new Date(now)
 
-      if (!month || month.label !== monthLabel) {
-        month = { label: monthLabel, days: [] }
-        months.push(month)
+    const daysAway =
+      (next -
+        new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          today.getDate(),
+        ).getTime()) /
+      DAY_MS
+
+    const days = [
+      ...new Set(
+        dates
+          .filter((_, index) => weekends[index] === next)
+          .map((date) =>
+            date.toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+            }),
+          ),
+      ),
+    ]
+
+    return {
+      rows: rows.filter(
+        (_, index) => weekends[index] === next,
+      ),
+      laterRows: rows.filter(
+        (_, index) => weekends[index] !== next,
+      ),
+      label:
+        new Date(next).getDay() === 6 && daysAway < 7
+          ? 'This Weekend'
+          : 'Next Games',
+      days: days.join(' & '),
+    }
+  }, [rows, primaryHeaders, now])
+
+  // Mobile agenda: later games grouped by month, then by day (like Google Calendar's schedule view).
+  const agenda = useMemo(
+    () =>
+      groupByMonthAndDay(
+        featured.laterRows,
+        primaryHeaders.date,
+      ),
+    [featured, primaryHeaders],
+  )
+
+  const featuredDays = useMemo(
+    () =>
+      groupByMonthAndDay(
+        featured.rows,
+        primaryHeaders.date,
+      ).flatMap((month) => month.days),
+    [featured, primaryHeaders],
+  )
+
+  const renderRow = (row, rowIndex, group) => (
+    <tr
+      key={
+        `${group}-${rowIndex}-` +
+        `${row[primaryHeaders.date] || ''}-` +
+        `${row[primaryHeaders.start] || ''}`
       }
+    >
+      {displayHeaders.map((header) => (
+        <td
+          key={`${rowIndex}-${header}`}
+          data-label={header}
+          className={
+            header === primaryHeaders.home ||
+            header === primaryHeaders.away
+              ? 'team-cell'
+              : undefined
+          }
+        >
+          {(header === primaryHeaders.date
+            ? formatDateWithWeekday(
+                row[header],
+              )
+            : row[header]) || (
+            <span className="dash">
+              —
+            </span>
+          )}
+        </td>
+      ))}
+    </tr>
+  )
 
-      let day = month.days[month.days.length - 1]
+  const renderDay = (day, dayIndex) => {
+    const isToday =
+      day.date &&
+      day.date.toDateString() ===
+        new Date().toDateString()
 
-      if (!day || day.raw !== raw) {
-        day = { raw, date, rows: [] }
-        month.days.push(day)
-      }
+    return (
+      <div
+        className="agenda-day"
+        key={`${day.raw}-${dayIndex}`}
+      >
+        <div
+          className={
+            `agenda-date` +
+            `${isToday ? ' today' : ''}`
+          }
+        >
+          {day.date ? (
+            <>
+              <span className="agenda-weekday">
+                {day.date.toLocaleDateString(
+                  'en-US',
+                  { weekday: 'short' },
+                )}
+              </span>
 
-      day.rows.push(row)
-    })
+              <span className="agenda-daynum">
+                {day.date.getDate()}
+              </span>
+            </>
+          ) : (
+            <span className="agenda-weekday">
+              {day.raw || 'TBD'}
+            </span>
+          )}
+        </div>
 
-    return months
-  }, [rows, primaryHeaders])
+        <ul className="agenda-events">
+          {day.rows.map((row, rowIndex) => {
+            const details = displayHeaders.filter(
+              (header) =>
+                row[header] &&
+                ![
+                  primaryHeaders.date,
+                  primaryHeaders.start,
+                  primaryHeaders.home,
+                  primaryHeaders.away,
+                ].includes(header),
+            )
+
+            return (
+              <li
+                className="agenda-event"
+                key={rowIndex}
+              >
+                <span className="agenda-event-title">
+                  {row[primaryHeaders.home] ||
+                    'TBD'}
+
+                  <span className="vs">
+                    vs
+                  </span>
+
+                  {row[primaryHeaders.away] ||
+                    'TBD'}
+                </span>
+
+                <span className="agenda-event-time">
+                  {row[primaryHeaders.start] ||
+                    'Time TBD'}
+                </span>
+
+                {details.length > 0 && (
+                  <span className="agenda-event-meta">
+                    {details.map((header) => (
+                      <span key={header}>
+                        <span className="agenda-meta-label">
+                          {header}
+                        </span>
+
+                        {row[header]}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+    )
+  }
 
   if (!rows.length) {
     return (
@@ -652,40 +895,39 @@ function ScheduleTable({ schedule }) {
             </tr>
           </thead>
 
-          <tbody>
-            {rows.map((row, rowIndex) => (
-              <tr
-                key={
-                  `${rowIndex}-` +
-                  `${row[primaryHeaders.date] || ''}-` +
-                  `${row[primaryHeaders.start] || ''}`
-                }
-              >
-                {displayHeaders.map((header) => (
-                  <td
-                    key={`${rowIndex}-${header}`}
-                    data-label={header}
-                    className={
-                      header === primaryHeaders.home ||
-                      header === primaryHeaders.away
-                        ? 'team-cell'
-                        : undefined
-                    }
-                  >
-                    {(header === primaryHeaders.date
-                      ? formatDateWithWeekday(
-                          row[header],
-                        )
-                      : row[header]) || (
-                      <span className="dash">
-                        —
-                      </span>
-                    )}
-                  </td>
-                ))}
+          {featured.rows.length > 0 && (
+            <tbody className="featured-games">
+              <tr className="group-row">
+                <td colSpan={displayHeaders.length}>
+                  {featured.label}
+
+                  <span className="group-dates">
+                    {featured.days}
+                  </span>
+                </td>
               </tr>
-            ))}
-          </tbody>
+
+              {featured.rows.map((row, rowIndex) =>
+                renderRow(row, rowIndex, 'featured'),
+              )}
+            </tbody>
+          )}
+
+          {featured.laterRows.length > 0 && (
+            <tbody className="later-games">
+              {featured.rows.length > 0 && (
+                <tr className="group-row">
+                  <td colSpan={displayHeaders.length}>
+                    Later Games
+                  </td>
+                </tr>
+              )}
+
+              {featured.laterRows.map((row, rowIndex) =>
+                renderRow(row, rowIndex, 'later'),
+              )}
+            </tbody>
+          )}
         </table>
       </div>
 
@@ -695,6 +937,20 @@ function ScheduleTable({ schedule }) {
         className="mobile-schedule"
         aria-label="Mites game schedule"
       >
+        {featuredDays.length > 0 && (
+          <section className="agenda-featured">
+            <h3 className="agenda-featured-label">
+              {featured.label}
+
+              <span className="group-dates">
+                {featured.days}
+              </span>
+            </h3>
+
+            {featuredDays.map(renderDay)}
+          </section>
+        )}
+
         {agenda.map((month, monthIndex) => (
           <section
             className="agenda-month"
@@ -704,98 +960,7 @@ function ScheduleTable({ schedule }) {
               {month.label}
             </h3>
 
-            {month.days.map((day, dayIndex) => {
-              const isToday =
-                day.date &&
-                day.date.toDateString() ===
-                  new Date().toDateString()
-
-              return (
-                <div
-                  className="agenda-day"
-                  key={`${day.raw}-${dayIndex}`}
-                >
-                  <div
-                    className={
-                      `agenda-date` +
-                      `${isToday ? ' today' : ''}`
-                    }
-                  >
-                    {day.date ? (
-                      <>
-                        <span className="agenda-weekday">
-                          {day.date.toLocaleDateString(
-                            'en-US',
-                            { weekday: 'short' },
-                          )}
-                        </span>
-
-                        <span className="agenda-daynum">
-                          {day.date.getDate()}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="agenda-weekday">
-                        {day.raw || 'TBD'}
-                      </span>
-                    )}
-                  </div>
-
-                  <ul className="agenda-events">
-                    {day.rows.map((row, rowIndex) => {
-                      const details = displayHeaders.filter(
-                        (header) =>
-                          row[header] &&
-                          ![
-                            primaryHeaders.date,
-                            primaryHeaders.start,
-                            primaryHeaders.home,
-                            primaryHeaders.away,
-                          ].includes(header),
-                      )
-
-                      return (
-                        <li
-                          className="agenda-event"
-                          key={rowIndex}
-                        >
-                          <span className="agenda-event-title">
-                            {row[primaryHeaders.home] ||
-                              'TBD'}
-
-                            <span className="vs">
-                              vs
-                            </span>
-
-                            {row[primaryHeaders.away] ||
-                              'TBD'}
-                          </span>
-
-                          <span className="agenda-event-time">
-                            {row[primaryHeaders.start] ||
-                              'Time TBD'}
-                          </span>
-
-                          {details.length > 0 && (
-                            <span className="agenda-event-meta">
-                              {details.map((header) => (
-                                <span key={header}>
-                                  <span className="agenda-meta-label">
-                                    {header}
-                                  </span>
-
-                                  {row[header]}
-                                </span>
-                              ))}
-                            </span>
-                          )}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              )
-            })}
+            {month.days.map(renderDay)}
           </section>
         ))}
       </div>

@@ -529,6 +529,95 @@ td.team-cell {
     #4f7093;
 }
 
+/* Group label rows: "This Weekend" and "Later Games". */
+.schedule-table
+tbody
+tr.group-row
+td {
+  position: static;
+
+  padding:
+    10px
+    12px;
+
+  color:
+    var(--muted);
+
+  background:
+    var(--surface-2);
+
+  font-size:
+    0.74rem;
+
+  font-weight:
+    700;
+
+  letter-spacing:
+    0.12em;
+
+  text-transform:
+    uppercase;
+}
+
+.schedule-table
+tbody.featured-games
+tr.group-row
+td {
+  color:
+    var(--white);
+
+  background:
+    var(--red);
+}
+
+.group-dates {
+  margin-left:
+    10px;
+
+  font-weight:
+    500;
+
+  letter-spacing:
+    0.04em;
+}
+
+/* The next weekend's games. */
+.schedule-table
+tbody.featured-games
+tr:not(.group-row)
+td {
+  background:
+    var(--featured);
+}
+
+.schedule-table
+tbody.featured-games
+tr:nth-child(odd):not(.group-row)
+td {
+  background:
+    var(--featured-alt);
+}
+
+.schedule-table
+tbody.featured-games
+tr:not(.group-row):hover
+td {
+  background:
+    var(--featured-strong);
+}
+
+.schedule-table
+tbody.featured-games
+tr:not(.group-row)
+td:first-child {
+  box-shadow:
+    inset
+    4px
+    0
+    0
+    var(--red);
+}
+
 /* =========================
    STATES
    ========================= */
@@ -1225,6 +1314,68 @@ span:not(
 
     font-weight:
       600;
+  }
+
+  /* The next weekend's games, boxed above the month list. */
+  .agenda-featured {
+    margin:
+      10px
+      0
+      8px;
+
+    padding:
+      0
+      12px
+      4px;
+
+    border:
+      1px solid
+      var(--red);
+
+    border-radius:
+      14px;
+
+    background:
+      var(--featured);
+  }
+
+  .agenda-featured-label {
+    margin: 0;
+
+    padding:
+      14px
+      0
+      8px;
+
+    color:
+      var(--red-text);
+
+    border-bottom:
+      1px solid
+      var(--line);
+
+    font-size:
+      1.05rem;
+
+    font-weight:
+      700;
+
+    letter-spacing:
+      0.04em;
+
+    text-transform:
+      uppercase;
+  }
+
+  .agenda-featured
+  .agenda-day:last-child {
+    border-bottom: 0;
+  }
+
+  .agenda-featured
+  .agenda-event {
+    background:
+      var(--featured-strong);
   }
 }
 

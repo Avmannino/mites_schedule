@@ -33,6 +33,9 @@
   --text-strong: #ffffff;
   --muted: #93abc3;
   --white: #ffffff;
+  --featured: #2a1d3d;
+  --featured-alt: #301f42;
+  --featured-strong: #3a2349;
 }
 
 *,
