@@ -119,7 +119,7 @@
     calc(var(--logo-size) * -0.212)
     calc(var(--logo-size) * -0.124);
 
-  /* Nudged up without moving anything around it (4px on tablet/mobile). */
+  /* Nudged up without moving anything around it (4px tablet, 2px phones). */
   transform:
     translateY(-20px);
 
@@ -1520,6 +1520,9 @@ span:not(
   }
 
   .hero-logo {
+    transform:
+      translateY(-2px);
+
     --logo-size:
       clamp(
         56px,
