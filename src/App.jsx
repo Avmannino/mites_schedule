@@ -111,12 +111,8 @@ async function fetchSchedule(sheetName, signal) {
   }
 }
 
-// Up to MAX_REQUESTS requests, per the policy above. `onSlow` fires
-// when a second or third request starts.
-function loadSchedule(
-  sheetName,
-  { signal, onSlow } = {},
-) {
+// Up to MAX_REQUESTS requests, per the policy above.
+function loadSchedule(sheetName, signal) {
   return new Promise((resolve, reject) => {
     // Aborted once settled, cancelling requests still in flight.
     const controller =
@@ -147,8 +143,6 @@ function loadSchedule(
 
     const start = () => {
       started += 1
-
-      if (started > 1) onSlow?.()
 
       if (started < MAX_REQUESTS) {
         timer = setTimeout(
@@ -194,9 +188,11 @@ function loadSchedule(
   })
 }
 
-// The last good copy of each schedule is kept on this device, so
-// repeat visits render instantly and a failed refresh still has
-// something to show.
+// The last good copy of each schedule is kept on this device. It's
+// shown (silently) if the API fails or takes longer than
+// SAVED_FALLBACK_MS; a fresh copy that arrives later replaces it.
+const SAVED_FALLBACK_MS = 8 * 1000
+
 const SAVED_SCHEDULE_PREFIX =
   'mites-schedule:v1:'
 
@@ -228,18 +224,6 @@ function saveSchedule(sheetName, schedule) {
     // Storage can be full or blocked (e.g. in a third-party
     // iframe); the saved copy is only a convenience.
   }
-}
-
-function formatSavedAt(timestamp) {
-  return new Date(timestamp).toLocaleString(
-    'en-US',
-    {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    },
-  )
 }
 
 // State updater that merges `changes` into one division.
@@ -989,17 +973,14 @@ function App() {
   const [activeKey, setActiveKey] =
     useState('b')
 
-  // Each division loads on its own, starting from the copy saved
-  // on this device (if any) while a fresh one is fetched.
+  // Each division loads on its own.
   const [divisions, setDivisions] =
     useState(() =>
       Object.fromEntries(
         SCHEDULES.map((config) => [
           config.key,
           {
-            schedule: readSavedSchedule(
-              config.sheetName,
-            ),
+            schedule: null,
             status: 'loading',
             error: '',
           },
@@ -1009,18 +990,32 @@ function App() {
 
   const refreshDivision = useCallback(
     async (config, signal) => {
+      const saved = readSavedSchedule(
+        config.sheetName,
+      )
+
+      // Show the saved copy unless something is already showing.
+      const showSaved = () => {
+        if (!saved) return
+
+        setDivisions((current) =>
+          current[config.key].schedule
+            ? current
+            : patchDivision(config.key, {
+                schedule: saved,
+              })(current),
+        )
+      }
+
+      const fallbackTimer = setTimeout(
+        showSaved,
+        SAVED_FALLBACK_MS,
+      )
+
       try {
         const schedule = await loadSchedule(
           config.sheetName,
-          {
-            signal,
-            onSlow: () =>
-              setDivisions(
-                patchDivision(config.key, {
-                  status: 'slow',
-                }),
-              ),
-          },
+          signal,
         )
 
         saveSchedule(
@@ -1043,6 +1038,8 @@ function App() {
           err,
         )
 
+        showSaved()
+
         setDivisions(
           patchDivision(config.key, {
             status: 'error',
@@ -1051,6 +1048,8 @@ function App() {
               'Unable to load the schedule from the schedule API.',
           }),
         )
+      } finally {
+        clearTimeout(fallbackTimer)
       }
     },
     [],
@@ -1081,10 +1080,6 @@ function App() {
     status,
     error,
   } = divisions[activeKey]
-
-  const refreshing =
-    status === 'loading' ||
-    status === 'slow'
 
   const retryActive = () => {
     setDivisions(
@@ -1130,13 +1125,6 @@ function App() {
           <div>
             <p className="section-kicker">
               GAME SCHEDULE
-
-              {activeSchedule &&
-                refreshing && (
-                  <span className="refresh-status">
-                    · Updating…
-                  </span>
-                )}
             </p>
 
             <h2>
@@ -1178,11 +1166,9 @@ function App() {
         </div>
 
         {!activeSchedule &&
-          refreshing && (
+          status === 'loading' && (
             <div className="loading-state">
-              {status === 'slow'
-                ? 'Taking longer than usual — still trying…'
-                : 'Loading schedule…'}
+              Loading schedule…
             </div>
           )}
 
@@ -1195,28 +1181,6 @@ function App() {
 
               <span>
                 {error}
-              </span>
-
-              <button
-                type="button"
-                className="retry-button"
-                onClick={retryActive}
-              >
-                Try again
-              </button>
-            </div>
-          )}
-
-        {activeSchedule &&
-          status === 'error' && (
-            <div className="stale-notice">
-              <span>
-                Couldn’t refresh — showing the
-                schedule as of{' '}
-                {formatSavedAt(
-                  activeSchedule.updatedAt,
-                )}
-                .
               </span>
 
               <button
