@@ -439,6 +439,7 @@ const CENTERED_COLUMNS = [
 
 // Sized to their content, leaving the spare width to the team names.
 const NARROW_COLUMNS = [
+  'DATE',
   'RINK',
   'START TIME',
   'Level',
