@@ -79,6 +79,11 @@
   min-width: 0;
 }
 
+.hero-amp {
+  color:
+    var(--red);
+}
+
 /* Splits the title onto two lines on mobile. */
 .hero-break {
   display: none;
@@ -93,7 +98,8 @@
   }
 }
 
-/* The PNG has wide transparent padding; negative margins trim it to the artwork. */
+/* Sized by height (--logo-size × 1.05); width follows the image's own
+   proportions. */
 .hero-logo {
   --logo-size:
     clamp(
@@ -107,17 +113,10 @@
     0
     auto;
 
-  width:
-    var(--logo-size);
+  width: auto;
 
   height:
-    var(--logo-size);
-
-  margin:
-    calc(var(--logo-size) * -0.166)
-    calc(var(--logo-size) * -0.296)
-    calc(var(--logo-size) * -0.212)
-    calc(var(--logo-size) * -0.124);
+    calc(var(--logo-size) * 1.05);
 
   /* Nudged up without moving anything around it (4px on tablet and phones). */
   transform:
@@ -135,6 +134,17 @@
         0.35
       )
     );
+}
+
+/* A touch smaller on wide screens. */
+@media (
+  min-width:
+    1250px
+) {
+  .hero-logo {
+    --logo-size:
+      115px;
+  }
 }
 
 .hero-eyebrow,
@@ -185,6 +195,11 @@
 
   overflow-wrap:
     break-word;
+
+  /* Lifted (without moving anything else) to sit midway between the
+     logo above and the subtext below. */
+  transform:
+    translateY(-10px);
 }
 
 .hero p {
@@ -1129,6 +1144,12 @@ span:not(
   .hero-logo {
     transform:
       translateY(-4px);
+  }
+
+  /* Midway between the logo and subtext at this size. */
+  .hero h1 {
+    transform:
+      translateY(-1.5px);
   }
 
   .hero {

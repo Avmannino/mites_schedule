@@ -414,15 +414,20 @@ function parseTime(value) {
 // Sheet headers are matched case-insensitively; unknown columns go last.
 const STANDARD_COLUMNS = [
   'DATE',
-  'RINK',
   'START TIME',
   'END TIME',
-  'Rink Location',
+  'RINK',
+  'Ice Location',
   'Format',
   'HOME TEAM',
   'AWAY TEAM',
   'Level',
 ]
+
+// Sheet headers shown under a different name.
+const COLUMN_ALIASES = {
+  'rink location': 'Ice Location',
+}
 
 const DEFAULT_RINK = 'Wings Arena'
 
@@ -439,12 +444,17 @@ function formatTime(value) {
 }
 
 function standardizeSchedule({ headers, rows }) {
-  const standardName = (header) =>
-    STANDARD_COLUMNS.find(
-      (column) =>
-        column.toLowerCase() ===
-        String(header).trim().toLowerCase(),
-    ) ?? header
+  const standardName = (header) => {
+    const key = String(header).trim().toLowerCase()
+
+    return (
+      COLUMN_ALIASES[key] ??
+      STANDARD_COLUMNS.find(
+        (column) => column.toLowerCase() === key,
+      ) ??
+      header
+    )
+  }
 
   const renamed = headers.map(standardName)
 
@@ -1123,7 +1133,7 @@ function App() {
         <div className="hero-copy">
 
           <h1>
-            Mite B/C{' '}
+            Mite B <span className="hero-amp">&amp;</span> Mite C{' '}
             {/* Line break shown on mobile only (CSS). */}
             <br className="hero-break" />
             Schedules
