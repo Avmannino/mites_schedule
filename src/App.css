@@ -542,6 +542,24 @@ td.team-cell {
     #4f7093;
 }
 
+/* Red rule between the weekday and the date: "Sat | 10/10/26". */
+.date-divider {
+  display: inline-block;
+
+  width: 2px;
+  height: 1em;
+
+  margin:
+    0
+    8px;
+
+  vertical-align:
+    -0.15em;
+
+  background:
+    var(--red);
+}
+
 /* Column alignment and widths (classes are on both the header and its cells). */
 .schedule-table
 .cell-center {

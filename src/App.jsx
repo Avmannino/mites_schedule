@@ -264,9 +264,6 @@ function findHeader(headers, candidates) {
   )
 }
 
-const WEEKDAY_PATTERN =
-  /\b(mon|tue|wed|thu|fri|sat|sun)/i
-
 function parseDate(value) {
   const text = String(value).trim()
 
@@ -548,37 +545,32 @@ function getGameEnd(row, primaryHeaders) {
   )
 }
 
+// Every sheet's date shown as "Sat | 10/10/26"; unreadable values are left as-is.
 function formatDateWithWeekday(value) {
   if (!value) return value
 
-  const text = String(value).trim()
+  const date = parseDate(String(value).trim())
 
-  if (WEEKDAY_PATTERN.test(text)) {
-    return text
-  }
+  if (!date) return value
 
-  const date = parseDate(text)
+  return (
+    <>
+      {date.toLocaleDateString('en-US', {
+        weekday: 'short',
+      })}
 
-  if (!date) return text
+      <span
+        className="date-divider"
+        aria-hidden="true"
+      />
 
-  const weekday = date.toLocaleDateString(
-    'en-US',
-    { weekday: 'short' },
-  )
-
-  // ISO dates and full timestamps (e.g. from Sheets) get a clean M/D/YYYY date.
-  if (/^\d{4}-/.test(text)) {
-    return `${weekday}, ${date.toLocaleDateString(
-      'en-US',
-      {
+      {date.toLocaleDateString('en-US', {
         month: 'numeric',
         day: 'numeric',
-        year: 'numeric',
-      },
-    )}`
-  }
-
-  return `${weekday}, ${text}`
+        year: '2-digit',
+      })}
+    </>
+  )
 }
 
 function ScheduleTable({ schedule }) {
