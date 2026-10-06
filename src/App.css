@@ -61,21 +61,18 @@
     var(--red);
 }
 
+/* Logo stacks above the title, its artwork left-aligned with the text
+   (the logo's negative margins trim the PNG's transparent padding). */
 .hero {
   display: flex;
 
+  flex-direction:
+    column-reverse;
+
   align-items:
-    center;
+    flex-start;
 
-  justify-content:
-    space-between;
-
-  gap:
-    clamp(
-      16px,
-      4vw,
-      48px
-    );
+  gap: 14px;
 }
 
 .hero-copy {
@@ -1125,17 +1122,7 @@ span:not(
       28px;
   }
 
-  /* Logo stacks above the title, its artwork left-aligned with the text
-     (the logo's negative margins trim the PNG's transparent padding). */
   .hero {
-    flex-direction:
-      column-reverse;
-
-    align-items:
-      flex-start;
-
-    gap: 14px;
-
     margin-left:
       -12px;
 
