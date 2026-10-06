@@ -638,21 +638,16 @@ td.matchup-cell {
     center;
 }
 
-/* Shrink to content, leaving the spare width to the other columns. */
-.schedule-table
-th.col-narrow {
-  width: 1%;
-}
-
 .schedule-table
 th.date-cell {
   width: 18%;
 }
 
-/* The matchup column takes whatever the other columns leave. */
+/* Date and Matchup get set shares; the other columns fit their content
+   and split what's left. */
 .schedule-table
 th.matchup-cell {
-  width: 76%;
+  width: 40%;
 }
 
 /* "This Weekend · Sat, Oct 10" tab on the table's top-right corner,

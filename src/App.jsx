@@ -437,15 +437,6 @@ const CENTERED_COLUMNS = [
   'Format',
 ]
 
-// Sized to their content, leaving the spare width to the team names.
-const NARROW_COLUMNS = [
-  'RINK',
-  'START TIME',
-  'Level',
-  'Rink Location',
-  'Format',
-]
-
 // "7:00:00" -> "7:00 AM". Values that can't be read are left as-is.
 function formatTime(value) {
   const time = parseTime(value)
@@ -769,8 +760,6 @@ function ScheduleTable({ schedule }) {
       header === MATCHUP && 'matchup-cell',
       CENTERED_COLUMNS.includes(header) &&
         'cell-center',
-      NARROW_COLUMNS.includes(header) &&
-        'col-narrow',
       header === primaryHeaders.date &&
         'date-cell',
     ]
