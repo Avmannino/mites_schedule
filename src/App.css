@@ -433,7 +433,7 @@
     var(--red);
 
   text-align:
-    left;
+    center;
 
   white-space:
     nowrap;
@@ -459,6 +459,9 @@ th:first-child {
   padding:
     12px
     var(--cell-x);
+
+  text-align:
+    center;
 
   border-right:
     1px solid
@@ -535,8 +538,9 @@ td {
     var(--text-soft);
 }
 
-/* Matchup: home right-aligned, "vs" centered, away left-aligned, so
-   "vs" lines up down the column (the header uses the same grid). */
+/* Matchup: each team centered in its own half with "vs" fixed in the
+   middle, so "vs" lines up down the column (the header uses the same
+   grid). Line height 1 keeps the names and "vs" on one vertical center. */
 .matchup {
   display: grid;
 
@@ -549,16 +553,14 @@ td {
     center;
 
   gap: 12px;
+
+  line-height: 1;
 }
 
-.matchup-home {
-  text-align:
-    right;
-}
-
+.matchup-home,
 .matchup-away {
   text-align:
-    left;
+    center;
 }
 
 .matchup-vs {
@@ -631,13 +633,7 @@ td.matchup-cell {
   }
 }
 
-/* Column alignment and widths (classes are on both the header and its cells). */
-.schedule-table
-.cell-center {
-  text-align:
-    center;
-}
-
+/* Column widths (classes are on both the header and its cells). */
 .schedule-table
 th.date-cell {
   width: 18%;

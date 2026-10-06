@@ -426,17 +426,6 @@ const STANDARD_COLUMNS = [
 
 const DEFAULT_RINK = 'Wings Arena'
 
-// Everything is centered except the Matchup column, which lines its
-// team names up on either side of "vs".
-const CENTERED_COLUMNS = [
-  'DATE',
-  'RINK',
-  'START TIME',
-  'Level',
-  'Rink Location',
-  'Format',
-]
-
 // "7:00:00" -> "7:00 AM". Values that can't be read are left as-is.
 function formatTime(value) {
   const time = parseTime(value)
@@ -758,8 +747,6 @@ function ScheduleTable({ schedule }) {
   const columnClass = (header) =>
     [
       header === MATCHUP && 'matchup-cell',
-      CENTERED_COLUMNS.includes(header) &&
-        'cell-center',
       header === primaryHeaders.date &&
         'date-cell',
     ]
