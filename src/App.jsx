@@ -585,18 +585,8 @@ function ScheduleTable({ schedule }) {
     [schedule],
   )
 
-  const [now, setNow] =
-    useState(() => Date.now())
-
-  // Re-check every minute so finished games drop off while the page stays open.
-  useEffect(() => {
-    const timer = setInterval(
-      () => setNow(Date.now()),
-      60 * 1000,
-    )
-
-    return () => clearInterval(timer)
-  }, [])
+  // Finished games are hidden based on the time the page loaded.
+  const [now] = useState(() => Date.now())
 
   const primaryHeaders = useMemo(() => {
     const date = findHeader(headers, [
