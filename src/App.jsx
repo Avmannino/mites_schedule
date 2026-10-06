@@ -536,7 +536,7 @@ function getGameEnd(row, primaryHeaders) {
   )
 }
 
-// Every sheet's date shown as "SATURDAY | 10/10/26"; unreadable values are left as-is.
+// Every sheet's date shown as "Saturday | 10/10/26" ("SAT" when narrow); unreadable values are left as-is.
 function formatDateWithWeekday(value) {
   if (!value) return value
 
@@ -548,11 +548,9 @@ function formatDateWithWeekday(value) {
     <>
       {/* Full weekday, swapped for the short one on narrower screens (CSS). */}
       <span className="weekday-long">
-        {date
-          .toLocaleDateString('en-US', {
-            weekday: 'long',
-          })
-          .toUpperCase()}
+        {date.toLocaleDateString('en-US', {
+          weekday: 'long',
+        })}
       </span>
 
       <span className="weekday-short">

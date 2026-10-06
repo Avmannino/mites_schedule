@@ -560,7 +560,7 @@ td.team-cell {
     var(--red);
 }
 
-/* "SATURDAY", or "SAT" when the table is short on room. */
+/* "Saturday", or "SAT" when the table is short on room. */
 .weekday-short {
   display: none;
 }
