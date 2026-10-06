@@ -605,6 +605,11 @@ th.col-narrow {
 }
 
 .schedule-table
+th.date-cell {
+  width: 18%;
+}
+
+.schedule-table
 th.team-cell {
   width: 15%;
 }
