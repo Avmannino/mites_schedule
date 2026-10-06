@@ -442,9 +442,15 @@ const STANDARD_COLUMNS = [
 
 const DEFAULT_RINK = 'Wings Arena'
 
-// Dates and short codes are centered; times and names stay
-// left-aligned so they scan easily.
-const CENTERED_COLUMNS = ['DATE', 'Level', 'Format']
+// Team names and rink locations stay left-aligned so they scan
+// easily; everything else is centered.
+const CENTERED_COLUMNS = [
+  'DATE',
+  'RINK',
+  'START TIME',
+  'Level',
+  'Format',
+]
 
 // Sized to their content, leaving the spare width to the team names.
 const NARROW_COLUMNS = [
