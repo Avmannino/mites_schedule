@@ -119,6 +119,10 @@
     calc(var(--logo-size) * -0.212)
     calc(var(--logo-size) * -0.124);
 
+  /* Nudged up without moving anything around it (4px on tablet/mobile). */
+  transform:
+    translateY(-20px);
+
   filter:
     drop-shadow(
       0
@@ -1120,6 +1124,11 @@ span:not(
       0
       12px
       28px;
+  }
+
+  .hero-logo {
+    transform:
+      translateY(-4px);
   }
 
   .hero {
