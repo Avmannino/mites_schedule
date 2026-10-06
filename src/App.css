@@ -528,13 +528,26 @@ td:first-child {
     var(--surface-hover);
 }
 
+/* Team names lead: larger and heavier, with the other detail columns softened. */
+.schedule-table
+td {
+  color:
+    var(--text-soft);
+}
+
 .schedule-table
 td.team-cell {
   color:
     var(--text-strong);
 
+  font-size:
+    0.95rem;
+
   font-weight:
-    700;
+    800;
+
+  letter-spacing:
+    0.01em;
 }
 
 .dash {
