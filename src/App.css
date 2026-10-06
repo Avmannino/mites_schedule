@@ -607,8 +607,10 @@ td {
     10px
     var(--cell-x);
 
+  border-right: 0;
+
   text-align:
-    left;
+    center;
 
   color:
     var(--muted);
@@ -672,6 +674,18 @@ td {
 
   font-weight:
     700;
+}
+
+/* In the table, the weekend's date stacks under the label so both fit the Date column. */
+.schedule-table
+.group-label
+.group-dates {
+  display: block;
+
+  margin:
+    2px
+    0
+    0;
 }
 
 /* The next weekend's games. */

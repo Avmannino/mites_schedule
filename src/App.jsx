@@ -909,14 +909,17 @@ function ScheduleTable({ schedule }) {
 
           {featured.rows.length > 0 && (
             <tbody className="featured-games">
+              {/* Label sits over the Date column; the rest of the bar is filler. */}
               <tr className="group-row">
-                <td colSpan={displayHeaders.length}>
+                <td className="group-label">
                   {featured.label}
 
                   <span className="group-dates">
                     {featured.days}
                   </span>
                 </td>
+
+                <td colSpan={displayHeaders.length - 1} />
               </tr>
 
               {featured.rows.map((row, rowIndex) =>
@@ -929,9 +932,11 @@ function ScheduleTable({ schedule }) {
             <tbody className="later-games">
               {featured.rows.length > 0 && (
                 <tr className="group-row">
-                  <td colSpan={displayHeaders.length}>
+                  <td className="group-label">
                     Later Games
                   </td>
+
+                  <td colSpan={displayHeaders.length - 1} />
                 </tr>
               )}
 
