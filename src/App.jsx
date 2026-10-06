@@ -888,64 +888,59 @@ function ScheduleTable({ schedule }) {
     <>
       {/* DESKTOP / TABLET */}
 
-      <div
-        className="desktop-table-wrap"
-        aria-label="Mites game schedule"
-      >
-        <table className="schedule-table">
-          <thead>
-            <tr>
-              {displayHeaders.map((header) => (
-                <th
-                  key={header}
-                  scope="col"
-                  className={columnClass(header)}
-                >
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
+      <div className="desktop-schedule">
+        {/* Tab on the table's top-right corner naming the highlighted rows. */}
+        {featured.rows.length > 0 && (
+          <div className="featured-tab">
+            {featured.label}
 
-          {featured.rows.length > 0 && (
-            <tbody className="featured-games">
-              {/* Label sits over the Date column; the rest of the bar is filler. */}
-              <tr className="group-row">
-                <td className="group-label">
-                  {featured.label}
+            <span
+              className="tab-divider"
+              aria-hidden="true"
+            />
 
-                  <span className="group-dates">
-                    {featured.days}
-                  </span>
-                </td>
+            <span className="group-dates">
+              {featured.days}
+            </span>
+          </div>
+        )}
 
-                <td colSpan={displayHeaders.length - 1} />
+        <div
+          className="desktop-table-wrap"
+          aria-label="Mites game schedule"
+        >
+          <table className="schedule-table">
+            <thead>
+              <tr>
+                {displayHeaders.map((header) => (
+                  <th
+                    key={header}
+                    scope="col"
+                    className={columnClass(header)}
+                  >
+                    {header}
+                  </th>
+                ))}
               </tr>
+            </thead>
 
-              {featured.rows.map((row, rowIndex) =>
-                renderRow(row, rowIndex, 'featured'),
-              )}
-            </tbody>
-          )}
+            {featured.rows.length > 0 && (
+              <tbody className="featured-games">
+                {featured.rows.map((row, rowIndex) =>
+                  renderRow(row, rowIndex, 'featured'),
+                )}
+              </tbody>
+            )}
 
-          {featured.laterRows.length > 0 && (
-            <tbody className="later-games">
-              {featured.rows.length > 0 && (
-                <tr className="group-row">
-                  <td className="group-label">
-                    Later Games
-                  </td>
-
-                  <td colSpan={displayHeaders.length - 1} />
-                </tr>
-              )}
-
-              {featured.laterRows.map((row, rowIndex) =>
-                renderRow(row, rowIndex, 'later'),
-              )}
-            </tbody>
-          )}
-        </table>
+            {featured.laterRows.length > 0 && (
+              <tbody className="later-games">
+                {featured.laterRows.map((row, rowIndex) =>
+                  renderRow(row, rowIndex, 'later'),
+                )}
+              </tbody>
+            )}
+          </table>
+        </div>
       </div>
 
       {/* MOBILE */}
