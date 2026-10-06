@@ -450,7 +450,12 @@ const DEFAULT_RINK = 'Wings Arena'
 const CENTERED_COLUMNS = ['Level', 'Format']
 
 // Sized to their content, leaving the spare width to the team names.
-const NARROW_COLUMNS = ['RINK', 'Level', 'Format']
+const NARROW_COLUMNS = [
+  'RINK',
+  'START TIME',
+  'Level',
+  'Format',
+]
 
 // "7:00:00" -> "7:00 AM". Values that can't be read are left as-is.
 function formatTime(value) {
