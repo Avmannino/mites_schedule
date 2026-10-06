@@ -443,7 +443,7 @@ const STANDARD_COLUMNS = [
   'AWAY TEAM',
 ]
 
-const DEFAULT_RINK = 'WINGS'
+const DEFAULT_RINK = 'Wings Arena'
 
 // Short codes are centered; dates, times and names stay left-aligned
 // so they scan easily.
@@ -493,7 +493,14 @@ function standardizeSchedule({ headers, rows }) {
       standardRow[renamed[index]] = row[header]
     })
 
-    standardRow.RINK ||= DEFAULT_RINK
+    // The sheets say "WINGS"; show the full name.
+    if (
+      !standardRow.RINK ||
+      String(standardRow.RINK).trim().toLowerCase() ===
+        'wings'
+    ) {
+      standardRow.RINK = DEFAULT_RINK
+    }
 
     ;['START TIME', 'END TIME'].forEach(
       (column) => {
